@@ -13,7 +13,7 @@ cam1.configure(cfg1)
 cam0.start()
 cam1.start()
 
-for i in range(20):
+for i in range(24):
     time.sleep(3)  # reposition checkerboard
     img0 = cam0.capture_array()  # NumPy array
     img1 = cam1.capture_array()
