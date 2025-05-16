@@ -20,7 +20,7 @@ pwm = None
 servo = None
 
 def initialize_motor():
-    """Initialize motor"""
+    """Initialize motor and PWM, return them in a dictionary."""
     global motor_1
     global pwm
     
@@ -34,68 +34,72 @@ def initialize_motor():
     motor_1.stop()
     pwm.off()
     
-    print("Motor initialized")
-    return motor_1
+    print("Motor and PWM initialized")
+    return {"motor_1": motor_1, "pwm": pwm} # Modified to return both
 
 def motor_update(data):
     """
     Update the motor state based on the received data
     """
     global motor_1
-    global motor_2
-    global motor_3
-    global motor_4
+    # global motor_2 # Not used yet
+    # global motor_3 # Not used yet
+    # global motor_4 # Not used yet
+    global pwm # Added global pwm here for clarity, as it's used
     print(f"Received motor update: {data}")
     
     # If motor hasn't been initialized, do it now
-    if motor_1 is None:
-        motor_1 = initialize_motor()
+    # This check might be redundant if main.py always initializes first
+    if motor_1 is None or pwm is None:
+        print("Warning: motor_update called before initialization.")
+        # Optionally, initialize here, or just return an error/warning
+        init_objects = initialize_motor()
+        # Note: initialize_motor() sets globals, so no need to reassign from init_objects here for globals
+        if motor_1 is None or pwm is None: # Check again if init failed
+             print("Error: Initialization failed in motor_update. Cannot proceed.")
+             return
     
-    motor1 = data.get("motor1", False)
-    motor2 = data.get("motor2", False)
-    motor3 = data.get("motor3", False)
-    motor4 = data.get("motor4", False)
+    motor1_active = data.get("motor1", False) # Renamed to avoid conflict with global motor1
+    # motor2 = data.get("motor2", False)
+    # motor3 = data.get("motor3", False)
+    # motor4 = data.get("motor4", False)
     m1_speed = data.get("m1_speed", .1)
-    m2_speed = data.get("m2_speed", .1)
-    m3_speed = data.get("m3_speed", .1)
-    m4_speed = data.get("m4_speed", .1)
+    # m2_speed = data.get("m2_speed", .1)
+    # m3_speed = data.get("m3_speed", .1)
+    # m4_speed = data.get("m4_speed", .1)
+
     # Validate and adjust motor speeds to be within 0-1 range
-    if not (0 <= m1_speed <= 1 and 0 <= m2_speed <= 1 and 0 <= m3_speed <= 1 and 0 <= m4_speed <= 1):
-        print(f"Invalid speed for motors: {m1_speed}, {m2_speed}, {m3_speed}, {m4_speed}, using default value 0.1")
+    if not (0 <= m1_speed <= 1): # Simplified for only m1_speed for now
+        print(f"Invalid speed for motor1: {m1_speed}, using default value 0.1")
         m1_speed = 0.1
-        m2_speed = 0.1
-        m3_speed = 0.1
-        m4_speed = 0.1
     
-    print(f'''Motor 1: {motor1} Speed: {m1_speed}\n
-             Motor 2: {motor2} Speed: {m2_speed}\n
-             Motor 3: {motor3} Speed: {m3_speed}\n
-             Motor 4: {motor4} Speed: {m4_speed}''')
+    print(f'Motor 1 Active: {motor1_active} Speed: {m1_speed}')
 
     # Control Motor 1
-    if motor1:
+    if motor1_active:
         print("Motor 1 is on")
-        motor_1.forward(m1_speed)
-        pwm.on()
+        motor_1.forward(m1_speed) # Use global motor_1
+        pwm.on()                  # Use global pwm
     else:
         print("Motor 1 is off")
         # Stop the motor
-        motor_1.stop()
-        pwm.off()
+        motor_1.stop() # Use global motor_1
+        pwm.off()      # Use global pwm
 
 # Function to clean up on program exit
 def motor_cleanup():
     """Clean up resources"""
     global motor_1
-    global motor_2
-    global motor_3
-    global motor_4
+    # global motor_2
+    # global motor_3
+    # global motor_4
+    global pwm # Added global pwm here for clarity
 
     if motor_1 is not None:
-        motor_1.stop()
+        motor_1.stop() # Use global motor_1
         # gpiozero automatically cleans up GPIO resources
     if pwm is not None:
-        pwm.off()
+        pwm.off()      # Use global pwm
 
     print("Motor cleaned up")
 

@@ -1,11 +1,12 @@
 from adafruit_servokit import ServoKit
 import time
-END_EFFECTOR_PIN = 0
-BASE_PIN = 15
-SHOULDER_PIN = 14
-ELBOW_PIN = 13
-WRIST_PIN = 12
-WRIST_ROTATION_PIN = 11
+
+BASE_PIN = 0
+SHOULDER_PIN = 1
+ELBOW_PIN = 2
+WRIST_PIN = 3
+WRIST_ROTATION_PIN = 4
+END_EFFECTOR_PIN = 5
 
 # End effector angle range: 40 - 100
 # Base angle range: 0 - 180
@@ -238,6 +239,21 @@ def kinematics(kit, angles):
     """
     Test the position of the end effector based on the angles of the servos
     """
+    # Check if the angles are within the permitted range
+    if not 0 <= angles[0] <= 180:
+        print(f"Warning: Base angle {angles[0]} is outside the permitted range (0-180)")
+    if not 0 <= angles[1] <= 180:
+        print(f"Warning: Shoulder angle {angles[1]} is outside the permitted range (0-180)")
+    if not 0 <= angles[2] <= 180:
+        print(f"Warning: Elbow angle {angles[2]} is outside the permitted range (0-180)")
+    if not 0 <= angles[3] <= 180:
+        print(f"Warning: Wrist angle {angles[3]} is outside the permitted range (0-180)")
+    if not 0 <= angles[4] <= 180:
+        print(f"Warning: Wrist rotation angle {angles[4]} is outside the permitted range (0-180)")
+    if not 40 <= angles[5] <= 100:
+        print(f"Warning: End effector angle {angles[5]} is outside the permitted range (40-100)")
+
+    # Move the servos to the specified angles
     move_servo_smooth(kit, BASE_PIN, angles[0], delay=0.1)
     move_servo_smooth(kit, SHOULDER_PIN, angles[1], delay=0.1)
     move_servo_smooth(kit, ELBOW_PIN, angles[2], delay=0.1)
@@ -246,7 +262,28 @@ def kinematics(kit, angles):
     move_servo_smooth(kit, END_EFFECTOR_PIN, angles[5], delay=0.1)
 
 
-kit = init_robot_arm()
-kinematics(kit, 
-    [0, 45, 45, 45, 45, 0]
-    )
+if __name__ == "__main__":
+    kit = init_robot_arm()
+    angles = [0, 45, 45, 45, 45, 60]
+    kinematics(kit, angles)
+    # Example of other functions if you want to test them directly:
+    # print("Testing wave_arm...")
+    # wave_arm(kit)
+    # time.sleep(1)
+    # print("Testing reset_to_home...")
+    # reset_to_home(kit)
+    # time.sleep(1)
+    # print("Testing handshake...")
+    # handshake(kit)
+    # time.sleep(1)
+    # print("Testing express_no...")
+    # express_no(kit)
+    # time.sleep(1)
+    # print("Testing bow...")
+    # bow(kit)
+    # time.sleep(1)
+    # print("Testing dance...")
+    # dance(kit)
+    # time.sleep(1)
+    # print("Testing look_around...")
+    # look_around(kit)

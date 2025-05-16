@@ -1,55 +1,82 @@
 import websockets
 import json
 import os
+import asyncio
 from dotenv import load_dotenv
-from utils import motor_update
+from robot_interface import execute_tool_call
+import functools
+import asyncio
 
 load_dotenv()
 
-async def handler(websocket):
+# Global variable to hold robot contexts, will be set by main.py
+# This is one way to make it accessible; another is passing via functools.partial
+# For now, let's aim to pass it directly via the server setup.
+
+async def handler(websocket, robot_contexts):
     """
-    Handle incoming WebSocket connections and motor control messages
+    Handle incoming WebSocket connections and tool call messages.
     """
     client_ip = websocket.remote_address[0]
     print(f"Client connected from {client_ip}")
 
     try:
         async for message in websocket:
-            
+            response = None # Initialize response
             try:
                 data = json.loads(message)
-                motor_update(data)
+                tool_name = data.get("name")
+                arguments = data.get("arguments")
 
-                # Send success response
-                response = {
-                    "status": "success",
-                    "message": "Motors updated"
-                    # "received_signals": message
-                }
+                if not tool_name:
+                    response = {
+                        "status": "error",
+                        "message": "Missing 'name' (tool name) in request."
+                    }
+                else:
+                    # Call the central tool executor
+                    # robot_contexts will be passed from start_server
+                    tool_result = await asyncio.to_thread(
+                        execute_tool_call, tool_name, arguments, robot_contexts
+                    )
+                    # The AI expects the direct result of the tool call (or a DONE:/ERROR: message)
+                    # Our execute_tool_call should return a dictionary that can be directly sent
+                    # or adapted if the AI expects a specific top-level structure for tool results.
+                    # Based on the examples, the AI expects the direct JSON output of the tool.
+                    response = tool_result
                 
             except json.JSONDecodeError:
                 response = {
                     "status": "error",
                     "message": "Invalid JSON format"
                 }
+            except Exception as e:
+                print(f"Error processing tool call: {e}")
+                response = {
+                    "status": "error",
+                    "message": f"Error processing request: {str(e)}"
+                }
             
             # Send response back to client
-            await websocket.send(json.dumps(response))
-            print(f"Sent response: {response}")
+            if response:
+                await websocket.send(json.dumps(response))
+                print(f"Sent response: {json.dumps(response)}")
             
     except websockets.exceptions.ConnectionClosed:
-        print("Client disconnected")
+        print(f"Client {client_ip} disconnected")
     except Exception as e:
-        print(f"Error in handler: {e}")
+        print(f"Error in WebSocket handler for {client_ip}: {e}")
 
-async def start_server():
+async def start_server(robot_contexts):
     """
-    Main entry point to start the WebSocket server
+    Main entry point to start the WebSocket server.
     """
-    server = await websockets.serve(
-        handler,
-        os.getenv("WEBSOCKET_HOST"),  # Listen on all interfaces
-        os.getenv("WEBSOCKET_PORT")        # Port from your .env
-    )
-    print(f"Motor control WebSocket server started on ws://{os.getenv('WEBSOCKET_HOST')}:{os.getenv('WEBSOCKET_PORT')}")
-    await server.wait_closed()
+    # Use functools.partial to pass robot_contexts to the handler
+    bound_handler = functools.partial(handler, robot_contexts=robot_contexts)
+    
+    server_host = os.getenv("WEBSOCKET_HOST", "0.0.0.0")
+    server_port = int(os.getenv("WEBSOCKET_PORT", 3001))
+
+    async with websockets.serve(bound_handler, server_host, server_port) as server:
+        print(f"Robot control WebSocket server started on ws://{server_host}:{server_port}")
+        await server.wait_closed()
